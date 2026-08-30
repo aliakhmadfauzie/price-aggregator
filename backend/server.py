@@ -16,6 +16,8 @@ from math import asin, cos, radians, sin, sqrt
 from pathlib import Path
 from typing import Any, List, Literal, Optional
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.interval import IntervalTrigger
 from dotenv import load_dotenv
 from fastapi import APIRouter, FastAPI, HTTPException, Query
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -24,6 +26,16 @@ from starlette.middleware.cors import CORSMiddleware
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
+
+from live_search import LiveListing, search_live  # noqa: E402
+from indexer import (  # noqa: E402
+    ACTIVE_SOURCES,
+    PRESET_KEYWORDS,
+    RECENT_DAYS,
+    TOP_N_PER_SOURCE_KEYWORD,
+    ensure_indexes,
+    run_index_cycle,
+)
 
 MONGO_URL = os.environ["MONGO_URL"]
 DB_NAME = os.environ["DB_NAME"]
@@ -343,10 +355,41 @@ async def seed_database() -> None:
 # ---------------------------------------------------------------------------
 
 
+SCHEDULER_INTERVAL_HOURS = float(os.environ.get("INDEX_INTERVAL_HOURS", "6"))
+SCHEDULER_ENABLED = os.environ.get("INDEX_SCHEDULER_ENABLED", "true").lower() == "true"
+
+_scheduler: Optional[AsyncIOScheduler] = None
+
+
+async def _scheduled_cycle_wrapper() -> None:
+    try:
+        logger.info("Scheduled index cycle firing")
+        await run_index_cycle(db)
+    except Exception:
+        logger.exception("Scheduled index cycle raised")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global _scheduler
     await seed_database()
+    await ensure_indexes(db)
+    if SCHEDULER_ENABLED:
+        _scheduler = AsyncIOScheduler(timezone="UTC")
+        _scheduler.add_job(
+            _scheduled_cycle_wrapper,
+            trigger=IntervalTrigger(hours=SCHEDULER_INTERVAL_HOURS),
+            id="index_cycle",
+            name="Marketplace index refresh",
+            max_instances=1,
+            coalesce=True,
+            misfire_grace_time=3600,
+        )
+        _scheduler.start()
+        logger.info("Scheduler started with %sh interval", SCHEDULER_INTERVAL_HOURS)
     yield
+    if _scheduler:
+        _scheduler.shutdown(wait=False)
     client.close()
 
 
@@ -499,6 +542,123 @@ async def get_product_deals(
 
 
 app.include_router(api_router)
+
+
+class LiveSearchResponse(BaseModel):
+    query: str
+    total: int
+    listings: List[LiveListing]
+
+
+@app.get("/api/live/search", response_model=LiveSearchResponse)
+async def live_search(
+    q: str = Query(..., min_length=1, max_length=100, description="Search query"),
+    sources: str = Query("facebook,carousell", description="Comma-separated: facebook, carousell"),
+) -> LiveSearchResponse:
+    """Live search across Facebook Marketplace + Carousell via Apify. 1h cache."""
+    requested = [
+        s.strip() for s in sources.split(",") if s.strip() in ("facebook", "carousell", "olx")
+    ]
+    if not requested:
+        raise HTTPException(status_code=400, detail="At least one valid source is required")
+    try:
+        rows = await search_live(db, q, requested)  # type: ignore[arg-type]
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except Exception as exc:
+        logger.exception("Live search failed")
+        raise HTTPException(status_code=502, detail=f"Live search failed: {exc}")
+    listings = [LiveListing(**row) for row in rows]
+    return LiveSearchResponse(query=q, total=len(listings), listings=listings)
+
+
+# ---------------------------------------------------------------------------
+# Curated index endpoints
+# ---------------------------------------------------------------------------
+
+
+class IndexedListing(BaseModel):
+    source: str
+    external_id: str
+    keyword: str
+    category: str
+    title: Optional[str] = None
+    price: Optional[float] = None
+    price_text: Optional[str] = None
+    currency: Optional[str] = None
+    image_url: Optional[str] = None
+    seller: Optional[str] = None
+    location: Optional[str] = None
+    listing_url: Optional[str] = None
+    posted_at: Optional[datetime] = None
+    first_seen_at: datetime
+    last_seen_at: datetime
+    is_active: bool = True
+
+
+class IndexStatus(BaseModel):
+    scheduler_enabled: bool
+    interval_hours: float
+    active_sources: List[str]
+    preset_keywords: List[str]
+    top_n_per_source_keyword: int
+    recent_days: int
+    active_listings: int
+    total_listings: int
+    last_run: Optional[dict] = None
+
+
+@app.get("/api/index/keywords", response_model=List[str])
+async def list_index_keywords() -> List[str]:
+    return PRESET_KEYWORDS
+
+
+@app.get("/api/index/listings", response_model=List[IndexedListing])
+async def get_index_listings(
+    keyword: Optional[str] = Query(None),
+    source: Optional[str] = Query(None),
+    include_sold: bool = Query(False),
+    sort: Literal["price_asc", "recent"] = Query("price_asc"),
+    limit: int = Query(200, ge=1, le=500),
+) -> List[IndexedListing]:
+    filters: dict[str, Any] = {}
+    if not include_sold:
+        filters["is_active"] = True
+    if keyword:
+        filters["keyword"] = keyword
+    if source:
+        filters["source"] = source
+    sort_spec = [("price", 1)] if sort == "price_asc" else [("last_seen_at", -1)]
+    cursor = db.indexed_listings.find(filters, {"_id": 0}).sort(sort_spec).limit(limit)
+    return [IndexedListing(**doc) async for doc in cursor]
+
+
+@app.get("/api/index/status", response_model=IndexStatus)
+async def get_index_status() -> IndexStatus:
+    active = await db.indexed_listings.count_documents({"is_active": True})
+    total = await db.indexed_listings.count_documents({})
+    last_run_doc = await db.index_runs.find_one({}, {"_id": 0}, sort=[("started_at", -1)])
+    return IndexStatus(
+        scheduler_enabled=SCHEDULER_ENABLED,
+        interval_hours=SCHEDULER_INTERVAL_HOURS,
+        active_sources=list(ACTIVE_SOURCES),
+        preset_keywords=PRESET_KEYWORDS,
+        top_n_per_source_keyword=TOP_N_PER_SOURCE_KEYWORD,
+        recent_days=RECENT_DAYS,
+        active_listings=active,
+        total_listings=total,
+        last_run=last_run_doc,
+    )
+
+
+@app.post("/api/index/refresh")
+async def trigger_index_refresh() -> dict:
+    """Fire an index cycle now (background). Returns immediately."""
+    import asyncio
+
+    asyncio.create_task(_scheduled_cycle_wrapper())
+    return {"status": "started", "at": datetime.now(timezone.utc).isoformat()}
+
 
 app.add_middleware(
     CORSMiddleware,

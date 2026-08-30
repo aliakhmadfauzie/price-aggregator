@@ -46,6 +46,16 @@ export default function TabsLayout() {
           tabBarButtonTestID: 'tab-nearby',
         }}
       />
+      <Tabs.Screen
+        name="live"
+        options={{
+          title: 'Deals',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="tag-heart" size={size} color={color} />
+          ),
+          tabBarButtonTestID: 'tab-deals',
+        }}
+      />
     </Tabs>
   );
 }
