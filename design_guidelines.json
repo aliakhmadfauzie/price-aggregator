@@ -1,0 +1,151 @@
+{
+  "app_name": "Marketplace Price Aggregator",
+  "personality": "1 iOS-Native Clean",
+  "personality_one_liner": "A clean, trustworthy, and content-led product discovery experience using native iOS rhythms.",
+  "color": {
+    "surface": "#FFFFFF",
+    "onSurface": "#111111",
+    "surfaceSecondary": "#F5F5F5",
+    "onSurfaceSecondary": "#444444",
+    "surfaceTertiary": "#EFEFEF",
+    "onSurfaceTertiary": "#222222",
+    "surfaceInverse": "#1A1A1A",
+    "onSurfaceInverse": "#FFFFFF",
+    "brand": "#5C8065",
+    "brandPrimary": "#5C8065",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#84A38C",
+    "onBrandSecondary": "#FFFFFF",
+    "brandTertiary": "#E8F0E9",
+    "onBrandTertiary": "#5C8065",
+    "success": "#4CAF50",
+    "onSuccess": "#FFFFFF",
+    "warning": "#FFC107",
+    "onWarning": "#000000",
+    "error": "#E53935",
+    "onError": "#FFFFFF",
+    "info": "#2196F3",
+    "onInfo": "#FFFFFF",
+    "border": "#E0E0E0",
+    "borderStrong": "#BDBDBD",
+    "divider": "#EEEEEE"
+  },
+  "typography": {
+    "displayFontFamily": "Geist",
+    "textFontFamily": "Geist",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous iOS-native padding. Group related elements cleanly with plenty of whitespace. Sticky actions get safe-area padding at bottom.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": 1,
+  "navigation": "stack_only",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": true,
+    "do's": [
+      "Use glass effect for the sticky 'Filter & Sort' header over scrolling lists.",
+      "Use glass for sticky bottom CTAs on the product details page."
+    ],
+    "dont's": [
+      "Don't use glass on individual list rows or product cards.",
+      "Don't use glass on form inputs."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Home",
+      "purpose": "Quick entry point with prominent search and featured deals.",
+      "states": {
+        "loading": "Centered spinner",
+        "empty": "No deals right now, check back later.",
+        "error": "Failed to load deals. Tap to retry."
+      },
+      "layout": "Sticky header with search bar (navigates to SearchResults). Below header: horizontal scroll of categories/filters. Then a grid or list of 'Trending Deals' highlighting product name, best price, and distance."
+    },
+    {
+      "name": "SearchResults",
+      "purpose": "Displays product listings matching user criteria with accessible filters.",
+      "states": {
+        "loading": "Skeleton grid",
+        "empty": "Illustration + 'No products found in this area.' + 'Clear filters' CTA.",
+        "error": "Failed to load products. Tap to retry."
+      },
+      "layout": "Sticky glass header with a 'Filter & Sort' trigger and applied filter chips. The list below contains product cards showing the best available price, distance of nearest seller, and total sellers."
+    },
+    {
+      "name": "ProductDetail",
+      "purpose": "Aggregates all sellers for a single product so user can compare.",
+      "states": {
+        "loading": "Spinner in seller list module.",
+        "empty": "Not applicable once product is loaded.",
+        "error": "Failed to load seller deals. Tap to retry."
+      },
+      "layout": "Top half: Product image hero and summary (title, lowest price). Bottom half: A distinct list of sellers. Each seller row shows store name, price, distance, and stock. Bottom of screen: Sticky primary CTA over a glass surface ('View Best Deal')."
+    }
+  ],
+  "images": {
+    "sneaker_1": {
+      "url": "https://images.unsplash.com/photo-1512374382149-233c42b6a83b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2OTF8MHwxfHNlYXJjaHwxfHxuaWtlJTIwc25lYWtlciUyMGNsZWFufGVufDB8fHx8MTc4ODA2OTkzNnww&ixlib=rb-4.1.0&q=85",
+      "alt": "white Nike high-top shoes"
+    },
+    "sneaker_2": {
+      "url": "https://images.unsplash.com/photo-1588110679566-158c6dea107c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzl8MHwxfHNlYXJjaHwxfHxhZGlkYXMlMjBzbmVha2VyJTIwY2xlYW58ZW58MHx8fHwxNzg4MDY5OTM2fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "white and black adidas sneakers"
+    },
+    "sneaker_3": {
+      "url": "https://images.unsplash.com/photo-1621315271772-28b1f3a5df87?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAxODF8MHwxfHNlYXJjaHwxfHxuZXclMjBiYWxhbmNlJTIwc25lYWtlciUyMGNsZWFufGVufDB8fHx8MTc4ODA2OTkzNnww&ixlib=rb-4.1.0&q=85",
+      "alt": "gray and white new balance shoe"
+    },
+    "store_front": {
+      "url": "https://images.unsplash.com/photo-1602254992120-5b3c3dad1d9d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTZ8MHwxfHNlYXJjaHwxfHxzdG9yZSUyMGZyb250JTIwbG9jYWwlMjBzaG9wfGVufDB8fHx8MTc4ODA2OTkzNnww&ixlib=rb-4.1.0&q=85",
+      "alt": "local store front"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Build the MVP using `stack_only` navigation: Home -> SearchResults -> ProductDetail.",
+    "Follow '1 iOS-Native Clean' personality guidelines: use Geist typography (or similar modern sans-serif fallback if Geist is unavailable in Expo, like Plus Jakarta Sans), and maintain generous padding.",
+    "Implement a Bottom Sheet using @gorhom/bottom-sheet for the 'Filter & Sort' controls on the SearchResults page.",
+    "Make sure the ProductDetail screen has a sticky bottom CTA area using glassmorphism (or solid surfaceSecondary fallback for android) pointing to the best deal.",
+    "Ensure seller comparison rows clearly separate price, distance, and stock status using typography hierarchy.",
+    "Do not use indigo, violet, blue, or purple in any of the UI elements. Stick to the Sage Green brand and neutrals.",
+    "No auth required. Hardcode mock data for products and sellers to demonstrate functionality."
+  ],
+  "haptics": {
+    "button_press": "light",
+    "filter_chip_toggle": "light",
+    "bottom_sheet_open": "medium",
+    "sort_segment_change": "selection"
+  }
+}
