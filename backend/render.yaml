@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: price-aggregator-backend
+    env: docker
+    rootDir: backend
+    dockerfilePath: Dockerfile
+    plan: free
+    envVars:
+      - key: MONGO_URL
+        sync: false
+      - key: APIFY_TOKEN
+        sync: false
+      - key: DB_NAME
+        value: price_aggregator
+      - key: FB_MARKETPLACE_CITY
+        value: medan
+      - key: CAROUSELL_MARKET
+        value: id
